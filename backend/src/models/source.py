@@ -6,6 +6,7 @@ class Period(Base):
 class Source(Base):
  __tablename__='yield_lots'
  id=Column(Integer,primary_key=True); natural_key=Column(String(120),unique=True); data=Column(JSON,nullable=False)
+ format_version=Column(Integer,nullable=False,server_default='1',default=1)
 class Policy(Base):
  __tablename__='denominator_policies'
  id=Column(Integer,primary_key=True); version=Column(String(120),unique=True); data=Column(JSON,nullable=False)

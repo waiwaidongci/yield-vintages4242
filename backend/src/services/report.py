@@ -3,12 +3,17 @@ from fastapi import HTTPException
 from src.models.source import Source,Policy
 from src.models.run import Run
 from src.services.audit import log
+from src.services.validation import normalize_source
 from src.config.settings import REDIS_URL
 import redis
 def submit(db,user,body):
  policy=db.get(Policy,body.policy_id)
  if not policy: raise HTTPException(404,'口径版本不存在')
- sources=[x.data for x in db.query(Source).order_by(Source.id).all() if body.period=='全部' or x.data.get('period')==body.period]
+ sources=[]
+ for x in db.query(Source).order_by(Source.id).all():
+  if body.period!='全部' and x.data.get('period')!=body.period: continue
+  try: sources.append(normalize_source(x.data))
+  except ValueError as exc: raise HTTPException(422,'底稿#'+str(x.id)+'数据无效，请先修正：'+str(exc))
  if not sources: raise HTTPException(422,'所选期间没有底稿')
  snapshot={'policy':policy.data,'sources':sources,'period':body.period}
  checksum=hashlib.sha256(json.dumps(snapshot,sort_keys=True,ensure_ascii=False).encode()).hexdigest()

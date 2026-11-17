@@ -1,13 +1,13 @@
 from fastapi import HTTPException
 from src.models.source import Source,Policy,Period
-from src.services.validation import validate_source,validate_policy
+from src.services.validation import normalize_source,validate_policy
 from src.services.audit import log
 import uuid
 def save_source(db,user,data,id=None):
- validate_source(data)
+ data=normalize_source(data)
  obj=db.get(Source,id) if id else Source(natural_key='user-'+uuid.uuid4().hex)
  if not obj: raise HTTPException(404,'底稿不存在')
- obj.data=data;db.add(obj)
+ obj.data=data;obj.format_version=2;db.add(obj)
  if not db.query(Period).filter_by(name=data['period']).first():db.add(Period(name=data['period'],description='业务来源自动登记期间'))
  log(db,user.email,'source.update' if id else 'source.create',obj.natural_key);db.commit();return obj
 def save_policy(db,user,data):

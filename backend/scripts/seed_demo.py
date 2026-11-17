@@ -1,11 +1,11 @@
 import json,random
-from src.config.database import Base,engine,Session
+from src.config.database import Base,engine,Session,ensure_schema
 from src.config.settings import CONFIG
 from src.models.identity import User
 from src.models.source import Source,Policy,Period
-from src.models import run
+from src.models import run,migration
 from src.utils.security import password_hash
-from src.services.validation import validate_source
+from src.services.validation import normalize_source
 
 def demo_rows():
  rng=random.Random(42);rows=[]
@@ -15,6 +15,7 @@ def demo_rows():
 
 def seed():
  Base.metadata.create_all(engine)
+ ensure_schema()
  with Session() as db:
   for role in ('admin','analyst','viewer'):
    if not db.query(User).filter_by(email=role+'@demo.local').first():db.add(User(email=role+'@demo.local',role=role,password=password_hash('Demo2026!')))
@@ -22,8 +23,8 @@ def seed():
   for name in sorted(set(r['period'] for r in rows)):
    if not db.query(Period).filter_by(name=name).first():db.add(Period(name=name,description='合成演示业务期间，seed=42'))
   for i,data in enumerate(rows):
-   validate_source(data);key='demo-'+str(i+1)
-   if not db.query(Source).filter_by(natural_key=key).first():db.add(Source(natural_key=key,data=data))
+   data=normalize_source(data);key='demo-'+str(i+1)
+   if not db.query(Source).filter_by(natural_key=key).first():db.add(Source(natural_key=key,data=data,format_version=2))
   if not db.query(Policy).filter_by(version=CONFIG['policy']['version']).first():db.add(Policy(version=CONFIG['policy']['version'],data=CONFIG['policy']))
   db.commit();print(json.dumps({'users':db.query(User).count(),'sources':db.query(Source).count(),'policies':db.query(Policy).count(),'periods':db.query(Period).count()},ensure_ascii=False))
 if __name__=='__main__':seed()
